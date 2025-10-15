@@ -411,12 +411,58 @@
         };
 
         // API Configuration
-        // If the page was opened directly from the filesystem (file://) or
-        // window.location.origin is not available, fall back to the local
-        // development server at http://localhost:3000 so API calls succeed.
-        let API_BASE_URL = window.location.origin;
+        // Allow a deploy-time or runtime override by creating a small
+        // `config.js` that sets `window.API_BASE_URL = 'https://your-backend.example'`
+        // and including it before this script. This is useful when the
+        // frontend is hosted on GitHub Pages (static) and the API runs elsewhere.
+        // Fallbacks:
+        // - If window.API_BASE_URL is set, use it.
+        // - If opened via file://, default to http://localhost:3000 for local dev.
+        // - Otherwise use window.location.origin (useful when frontend and backend share origin).
+        let API_BASE_URL = (typeof window.API_BASE_URL !== 'undefined' && window.API_BASE_URL)
+            ? window.API_BASE_URL
+            : window.location.origin;
+
         if (!API_BASE_URL || API_BASE_URL === 'null' || window.location.protocol === 'file:') {
             API_BASE_URL = 'http://localhost:3000';
+        }
+
+        // Demo fallback data (shown when no backend is configured or reachable).
+        const DEMO_NEWS = [
+            {
+                id: 'demo-1',
+                title: 'Demo: Coordinated Phishing Campaign Targets Enterprises',
+                tldr: 'A simulated campaign demonstrates how attackers use credential harvesting.',
+                content: 'This is demo content to show how the news cards will render when no backend is available. Deploy the API and set window.API_BASE_URL to see live data.',
+                confidence: 'high',
+                sources: 4,
+                timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+                category: 'general',
+                references: [{ name: 'Demo Source', url: 'https://example.com' }]
+            },
+            {
+                id: 'demo-2',
+                title: 'Demo: New Ransomware Variant Targets OT Environments',
+                tldr: 'Sample TL;DR of a ransomware story used for demonstration.',
+                content: 'Demo content showing how full story and sources are presented in the UI.',
+                confidence: 'medium',
+                sources: 2,
+                timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
+                category: 'ransomware',
+                references: [{ name: 'Demo Source 2', url: 'https://example.com' }]
+            }
+        ];
+
+        // Show demo news when backend is not available or user requests it
+        function showDemoNews() {
+            allNews = DEMO_NEWS;
+            applyCurrentFilters();
+            renderNews();
+            // Update stats locally from demo data
+            document.getElementById('totalNews').textContent = allNews.length;
+            document.getElementById('highConfidence').textContent = allNews.filter(n => n.confidence === 'high').length;
+            document.getElementById('sources').textContent = new Set(allNews.flatMap(n => n.references.map(r => r.name))).size;
+            updateLastUpdated(null);
         }
 
         // Initialize the app
@@ -449,7 +495,12 @@
                 if (!response.ok) {
                     // Provide a helpful hint when the API endpoint is missing (404)
                     if (response.status === 404) {
-                        showError('API returned 404 — server not found. Make sure the Node server is running (npm start) and open the app at http://localhost:3000');
+                        // If a custom API wasn't provided (e.g., on GitHub Pages), instruct the user
+                        if (!window.API_BASE_URL) {
+                            showError('API returned 404 — no backend is available at this origin. For GitHub Pages, deploy the backend separately and create `config.js` that sets `window.API_BASE_URL` to your backend URL.');
+                        } else {
+                            showError('API returned 404 — server not found. Check that the backend URL in your config is correct and reachable.');
+                        }
                         return;
                     }
                     throw new Error(`HTTP error! status: ${response.status}`);
@@ -471,9 +522,16 @@
                 }
             } catch (error) {
                 console.error('Error loading news:', error);
-                // If fetch failed because the server is not running, show actionable message
-                if (error.message && error.message.includes('Failed to fetch')) {
-                    showError('Network error: Could not reach API. Is the server running? Start it with `npm start` and visit http://localhost:3000');
+                // If fetch failed because the server is not running or unreachable, show actionable message
+                if (error.message && (error.message.includes('Failed to fetch') || error.message.includes('NetworkError'))) {
+                    // If running on GitHub Pages or a static host, suggest using config.js or demo mode
+                    if (window.location.hostname && window.location.hostname.endsWith('github.io') && !window.API_BASE_URL) {
+                        showError('Could not reach API. On GitHub Pages you must run the backend elsewhere and set `window.API_BASE_URL` via a `config.js` file. Click "Show demo news" to preview the UI.');
+                    } else if (window.API_BASE_URL && window.API_BASE_URL !== 'http://localhost:3000') {
+                        showError(`Could not reach configured API at ${window.API_BASE_URL}. Check the backend deployment.`);
+                    } else {
+                        showError('Network error: Could not reach API. Is the server running? Start it with `npm start` and visit http://localhost:3000 (or set window.API_BASE_URL when deploying frontend separately).');
+                    }
                 } else {
                     showError(`Network error: ${error.message}`);
                 }
@@ -655,6 +713,19 @@
             container.style.display = 'none';
             noNews.style.display = 'block';
             noNews.innerHTML = `❌ ${message}`;
+
+            // If the error is related to missing backend on a static host, offer demo mode
+            if ((message && message.toLowerCase().includes('github pages')) || (message && message.toLowerCase().includes('could not reach api')) || (message && message.toLowerCase().includes('no backend'))) {
+                const btn = document.createElement('button');
+                btn.className = 'refresh-btn';
+                btn.textContent = 'Show demo news';
+                btn.style.marginTop = '16px';
+                btn.onclick = () => {
+                    showDemoNews();
+                };
+                noNews.appendChild(document.createElement('br'));
+                noNews.appendChild(btn);
+            }
         }
 
         // Format timestamp
