@@ -411,7 +411,13 @@
         };
 
         // API Configuration
-        const API_BASE_URL = window.location.origin;
+        // If the page was opened directly from the filesystem (file://) or
+        // window.location.origin is not available, fall back to the local
+        // development server at http://localhost:3000 so API calls succeed.
+        let API_BASE_URL = window.location.origin;
+        if (!API_BASE_URL || API_BASE_URL === 'null' || window.location.protocol === 'file:') {
+            API_BASE_URL = 'http://localhost:3000';
+        }
 
         // Initialize the app
         async function init() {
@@ -439,8 +445,13 @@
             try {
                 console.log('Loading news from API...');
                 const response = await fetch(`${API_BASE_URL}/api/news`);
-                
+
                 if (!response.ok) {
+                    // Provide a helpful hint when the API endpoint is missing (404)
+                    if (response.status === 404) {
+                        showError('API returned 404 — server not found. Make sure the Node server is running (npm start) and open the app at http://localhost:3000');
+                        return;
+                    }
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 
@@ -460,7 +471,12 @@
                 }
             } catch (error) {
                 console.error('Error loading news:', error);
-                showError(`Network error: ${error.message}`);
+                // If fetch failed because the server is not running, show actionable message
+                if (error.message && error.message.includes('Failed to fetch')) {
+                    showError('Network error: Could not reach API. Is the server running? Start it with `npm start` and visit http://localhost:3000');
+                } else {
+                    showError(`Network error: ${error.message}`);
+                }
             } finally {
                 isLoading = false;
                 showLoading(false);
