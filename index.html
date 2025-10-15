@@ -421,9 +421,20 @@
         // - If window.API_BASE_URL is set, use it.
         // - If opened via file://, default to http://localhost:3000 for local dev.
         // - Otherwise use window.location.origin (useful when frontend and backend share origin).
-        let API_BASE_URL = (typeof window.API_BASE_URL !== 'undefined' && window.API_BASE_URL)
-            ? window.API_BASE_URL
-            : window.location.origin;
+        // If a config was provided, validate it. Treat common placeholders as unset so
+        // we don't attempt to call a non-existing hostname (causes console DNS errors).
+        let providedApi = (typeof window.API_BASE_URL !== 'undefined') ? String(window.API_BASE_URL).trim() : '';
+        if (providedApi) {
+            const lower = providedApi.toLowerCase();
+            // Common placeholder patterns used in examples
+            const isPlaceholder = lower.includes('example') || lower.includes('your-backend') || lower === 'https://your-backend.example';
+            if (isPlaceholder) {
+                console.warn('Detected placeholder API URL in config.js — ignoring it so demo mode can be used. Update config.js with your real backend URL to fetch live news.');
+                providedApi = '';
+            }
+        }
+
+        let API_BASE_URL = providedApi || window.location.origin;
 
         if (!API_BASE_URL || API_BASE_URL === 'null' || window.location.protocol === 'file:') {
             API_BASE_URL = 'http://localhost:3000';

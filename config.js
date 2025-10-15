@@ -1,1 +1,1 @@
-window.API_BASE_URL = 'https://your-backend.example';
+window.API_BASE_URL = 'https://https://faridas-art.github.io/cyber_news_repo/';
