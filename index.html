@@ -454,7 +454,7 @@
         let API_BASE_URL = providedApi || window.location.origin;
 
         if (!API_BASE_URL || API_BASE_URL === 'null' || window.location.protocol === 'file:') {
-            API_BASE_URL = 'http://localhost:3000';
+            API_BASE_URL = 'https://faridas-art.github.io/cyber_news_repo/';
         }
 
         // Demo fallback data (shown when no backend is configured or reachable).
@@ -557,7 +557,7 @@
                     // If running on GitHub Pages or a static host, suggest using config.js or demo mode
                     if (window.location.hostname && window.location.hostname.endsWith('github.io') && !window.API_BASE_URL) {
                         showError('Could not reach API. On GitHub Pages you must run the backend elsewhere and set `window.API_BASE_URL` via a `config.js` file. Click "Show demo news" to preview the UI.');
-                    } else if (window.API_BASE_URL && window.API_BASE_URL !== 'http://localhost:3000') {
+                    } else if (window.API_BASE_URL && window.API_BASE_URL !== 'https://faridas-art.github.io/cyber_news_repo/') {
                         showError(`Could not reach configured API at ${window.API_BASE_URL}. Check the backend deployment.`);
                     } else {
                         showError('Network error: Could not reach API. Is the server running? Start it with `npm start` and visit http://localhost:3000 (or set window.API_BASE_URL when deploying frontend separately).');
