@@ -694,17 +694,43 @@
         // Update statistics from API
         async function updateStats() {
             try {
+                const out = document.getElementById && document.getElementById('diag-output');
+                if (out) out.textContent = 'Fetching /api/stats ...';
+
                 const response = await fetch(`${API_BASE_URL}/api/stats`);
-                const result = await response.json();
-                
-                if (result.success) {
+
+                // Read raw text first so we can show useful diagnostics on parse error
+                const raw = await response.text();
+
+                if (!response.ok) {
+                    console.error(`/api/stats returned HTTP ${response.status}`);
+                    if (out) out.textContent = `Error: /api/stats returned HTTP ${response.status} ${response.statusText}`;
+                    return;
+                }
+
+                let result;
+                try {
+                    result = JSON.parse(raw);
+                } catch (parseErr) {
+                    console.error('Invalid JSON received from /api/stats:', raw);
+                    if (out) out.textContent = `Invalid JSON from /api/stats: ${raw.substring(0, 300)}`;
+                    return;
+                }
+
+                if (result && result.success) {
                     const stats = result.data;
                     document.getElementById('totalNews').textContent = stats.totalNews;
                     document.getElementById('highConfidence').textContent = stats.highConfidence;
                     document.getElementById('sources').textContent = stats.sources;
+                    if (out) out.textContent = `/api/stats OK — total: ${stats.totalNews}, sources: ${stats.sources}`;
+                } else {
+                    console.error('Unexpected /api/stats response:', result);
+                    if (out) out.textContent = `Unexpected /api/stats response: ${JSON.stringify(result).substring(0,300)}`;
                 }
             } catch (error) {
                 console.error('Error updating stats:', error);
+                const out = document.getElementById && document.getElementById('diag-output');
+                if (out) out.textContent = `Error updating stats: ${error && error.message ? error.message : error}`;
             }
         }
 
