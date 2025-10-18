@@ -401,6 +401,12 @@
                 <button class="filter-btn" onclick="clearCacheAndRetry()">Clear cache & Reload</button>
                 <button class="filter-btn" onclick="showDemoNews()">Show demo news</button>
             </div>
+            <div style="margin-top:12px; display:flex; gap:8px; align-items:center;">
+                <input id="diag-api-input" placeholder="https://api.example.com" style="flex:1; padding:8px; border-radius:6px; border:1px solid rgba(255,255,255,0.08); background:transparent; color:#fff;"> 
+                <button class="refresh-btn" onclick="saveApiOverrideFromInput()">Save API</button>
+                <button class="filter-btn" onclick="clearLocalOverride()">Clear</button>
+                <button class="filter-btn" onclick="openApiUrl()">Open API</button>
+            </div>
             <div id="diag-output" style="margin-top:12px; color:#fff; font-size:0.9em;"></div>
         </div>
 
@@ -438,9 +444,11 @@
         // - If window.API_BASE_URL is set, use it.
         // - If opened via file://, default to http://localhost:3000 for local dev.
         // - Otherwise use window.location.origin (useful when frontend and backend share origin).
-        // If a config was provided, validate it. Treat common placeholders as unset so
-        // we don't attempt to call a non-existing hostname (causes console DNS errors).
-        let providedApi = (typeof window.API_BASE_URL !== 'undefined') ? String(window.API_BASE_URL).trim() : '';
+        // If a config was provided, validate it. We'll prefer a runtime override saved
+        // in localStorage (set via the diagnostics UI). Treat common placeholders as unset
+        // so we don't attempt to call a non-existing hostname (causes console DNS errors).
+        let storedApi = localStorage.getItem('API_BASE_URL') ? String(localStorage.getItem('API_BASE_URL')).trim() : '';
+        let providedApi = storedApi || ((typeof window.API_BASE_URL !== 'undefined') ? String(window.API_BASE_URL).trim() : '');
         if (providedApi) {
             const lower = providedApi.toLowerCase();
             // Common placeholder patterns used in examples
@@ -454,7 +462,7 @@
         let API_BASE_URL = providedApi || window.location.origin;
 
         if (!API_BASE_URL || API_BASE_URL === 'null' || window.location.protocol === 'file:') {
-            API_BASE_URL = 'https://faridas-art.github.io/cyber_news_repo/';
+            API_BASE_URL = 'http://localhost:3000';
         }
 
         // Demo fallback data (shown when no backend is configured or reachable).
@@ -874,6 +882,31 @@
             // Clear any localStorage API override and reload
             if (localStorage.getItem('API_BASE_URL')) localStorage.removeItem('API_BASE_URL');
             location.reload();
+        }
+
+        // Runtime API override helpers
+        function saveApiOverrideFromInput() {
+            const input = document.getElementById('diag-api-input');
+            if (!input) return;
+            const val = input.value.trim();
+            if (!val) {
+                alert('Please enter a valid API base URL (e.g. https://api.example.com)');
+                return;
+            }
+            localStorage.setItem('API_BASE_URL', val);
+            // reload to pick up override at top-level code
+            location.reload();
+        }
+
+        function clearLocalOverride() {
+            localStorage.removeItem('API_BASE_URL');
+            document.getElementById('diag-api-input').value = '';
+            location.reload();
+        }
+
+        function openApiUrl() {
+            const url = API_BASE_URL.replace(/\/$/, '') + '/api/news';
+            window.open(url, '_blank');
         }
 
         // Auto-refresh every 30 minutes
