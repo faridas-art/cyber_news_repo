@@ -533,7 +533,18 @@
                 if (!response.ok) {
                     // Provide a helpful hint when the API endpoint is missing (404)
                     if (response.status === 404) {
-                        // If a custom API wasn't provided (e.g., on GitHub Pages), instruct the user
+                        // If running on a static host (GitHub Pages) and no API override is set,
+                        // automatically show demo news so the site looks usable without a backend.
+                        const runningOnPages = window.location.hostname && window.location.hostname.endsWith('github.io');
+                        const hasRuntimeOverride = Boolean(localStorage.getItem('API_BASE_URL')) || (typeof window.API_BASE_URL !== 'undefined' && String(window.API_BASE_URL).trim() !== '');
+
+                        if (runningOnPages && !hasRuntimeOverride) {
+                            console.warn('API returned 404 on GitHub Pages and no API override found — showing demo data');
+                            showDemoNews();
+                            return;
+                        }
+
+                        // Otherwise, show an informative error
                         if (!window.API_BASE_URL) {
                             showError('API returned 404 — no backend is available at this origin. For GitHub Pages, deploy the backend separately and create `config.js` that sets `window.API_BASE_URL` to your backend URL.');
                         } else {
@@ -562,10 +573,18 @@
                 console.error('Error loading news:', error);
                 // If fetch failed because the server is not running or unreachable, show actionable message
                 if (error.message && (error.message.includes('Failed to fetch') || error.message.includes('NetworkError'))) {
-                    // If running on GitHub Pages or a static host, suggest using config.js or demo mode
-                    if (window.location.hostname && window.location.hostname.endsWith('github.io') && !window.API_BASE_URL) {
-                        showError('Could not reach API. On GitHub Pages you must run the backend elsewhere and set `window.API_BASE_URL` via a `config.js` file. Click "Show demo news" to preview the UI.');
-                    } else if (window.API_BASE_URL && window.API_BASE_URL !== 'https://faridas-art.github.io/cyber_news_repo/') {
+                    const runningOnPages = window.location.hostname && window.location.hostname.endsWith('github.io');
+                    const hasRuntimeOverride = Boolean(localStorage.getItem('API_BASE_URL')) || (typeof window.API_BASE_URL !== 'undefined' && String(window.API_BASE_URL).trim() !== '');
+
+                    // If on Pages and no override -> auto-show demo data
+                    if (runningOnPages && !hasRuntimeOverride) {
+                        console.warn('Network error reaching API on GitHub Pages and no override found — showing demo data');
+                        showDemoNews();
+                        return;
+                    }
+
+                    // Otherwise show instructive error
+                    if (window.API_BASE_URL && String(window.API_BASE_URL).trim() !== '') {
                         showError(`Could not reach configured API at ${window.API_BASE_URL}. Check the backend deployment.`);
                     } else {
                         showError('Network error: Could not reach API. Is the server running? Start it with `npm start` and visit http://localhost:3000 (or set window.API_BASE_URL when deploying frontend separately).');
