@@ -387,6 +387,23 @@
             <button class="refresh-btn" onclick="refreshNews()">🔄 Refresh News</button>
         </div>
 
+        <!-- Diagnostics panel for troubleshooting network / deployment issues -->
+        <div id="diagnostics" style="margin-top:20px; background: rgba(255,255,255,0.03); padding:12px; border-radius:8px;">
+            <h4 style="color:#00d4ff; margin-bottom:8px;">Diagnostics</h4>
+            <div style="color:#ccc; font-size:0.9em; margin-bottom:8px;">
+                <div>Frontend URL: <span id="diag-frontend">-</span></div>
+                <div>API Base URL: <span id="diag-api">-</span></div>
+                <div>Location Hostname: <span id="diag-host">-</span></div>
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <button class="filter-btn" onclick="diagPingApi()">Test /api/news</button>
+                <button class="filter-btn" onclick="diagFetchStats()">Test /api/stats</button>
+                <button class="filter-btn" onclick="clearCacheAndRetry()">Clear cache & Reload</button>
+                <button class="filter-btn" onclick="showDemoNews()">Show demo news</button>
+            </div>
+            <div id="diag-output" style="margin-top:12px; color:#fff; font-size:0.9em;"></div>
+        </div>
+
         <div id="loading" class="loading" style="display: none;">
             🔍 Scraping latest cybersecurity news...
         </div>
@@ -400,7 +417,7 @@
         </div>
     </main>
 
-    <script src="config.js"></script>
+    
 
     <script>
         // News data structure
@@ -786,6 +803,53 @@
             });
         }
 
+        // Diagnostics helpers
+        function setDiagInfo() {
+            document.getElementById('diag-frontend').textContent = window.location.href;
+            document.getElementById('diag-api').textContent = API_BASE_URL;
+            document.getElementById('diag-host').textContent = window.location.hostname || 'n/a';
+        }
+
+        async function diagPingApi() {
+            const out = document.getElementById('diag-output');
+            out.textContent = 'Pinging /api/news ...';
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/news`, { method: 'GET' });
+                out.textContent = `Status: ${res.status} ${res.statusText}`;
+                if (res.ok) {
+                    const json = await res.json();
+                    out.textContent += ` — success: ${json.success}, items: ${json.data?.length ?? 'n/a'}`;
+                } else {
+                    out.textContent += ` — response not ok`;
+                }
+            } catch (err) {
+                out.textContent = `Error: ${err.message}`;
+            }
+        }
+
+        async function diagFetchStats() {
+            const out = document.getElementById('diag-output');
+            out.textContent = 'Fetching /api/stats ...';
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/stats`, { method: 'GET' });
+                out.textContent = `Status: ${res.status} ${res.statusText}`;
+                if (res.ok) {
+                    const json = await res.json();
+                    out.textContent += ` — success: ${json.success}`;
+                } else {
+                    out.textContent += ` — response not ok`;
+                }
+            } catch (err) {
+                out.textContent = `Error: ${err.message}`;
+            }
+        }
+
+        function clearCacheAndRetry() {
+            // Clear any localStorage API override and reload
+            if (localStorage.getItem('API_BASE_URL')) localStorage.removeItem('API_BASE_URL');
+            location.reload();
+        }
+
         // Auto-refresh every 30 minutes
         setInterval(() => {
             if (!isLoading) {
@@ -794,7 +858,10 @@
         }, 30 * 60 * 1000);
 
         // Initialize the app when page loads
-        document.addEventListener('DOMContentLoaded', init);
+        document.addEventListener('DOMContentLoaded', () => {
+            setDiagInfo();
+            init();
+        });
     </script>
 </body>
 </html>
